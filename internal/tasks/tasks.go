@@ -2,14 +2,24 @@ package tasks
 
 import (
 	"encoding/csv"
-	"fmt"
 	"io"
+	"log"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/hussein-mourad/gotasks/utils"
 )
+
+type Store struct {
+	Tasks []Task
+}
+
+func NewStore() *Store {
+	s := &Store{Tasks: make([]Task, 0)}
+	s.ReadTasks()
+	return s
+}
 
 type Task struct {
 	ID        int       `csv:"id"`
@@ -19,15 +29,27 @@ type Task struct {
 }
 
 func NewTask(id int, task string) *Task {
-	return &Task{Task: task, Completed: false, Created: time.Now()}
+	return &Task{ID: id, Task: task, Completed: false, Created: time.Now().UTC()}
 }
 
-func ReadTasks() map[int]Task {
+func (s *Store) CreateTask(Task string) error {
+	s.Tasks = append(s.Tasks, *NewTask(s.GetInsertID(), Task))
+	return s.WriteTasks()
+}
+
+func (s *Store) GetInsertID() int {
+	insertID := 1
+	if len(s.Tasks) > 0 {
+		insertID = s.Tasks[len(s.Tasks)-1].ID + 1
+	}
+	return insertID
+}
+
+func (s *Store) ReadTasks() {
 	file, err := os.OpenFile("data/tasks.csv", os.O_CREATE|os.O_RDWR, 0o644)
 	utils.HandleErr(err)
 	defer file.Close()
 	r := csv.NewReader(file)
-	tasks := make(map[int]Task, 2)
 
 	i := 0
 	for {
@@ -36,7 +58,7 @@ func ReadTasks() map[int]Task {
 			break
 		}
 		if err != nil {
-			fmt.Println("Error reading CSV data:", err)
+			log.Fatal("Error reading CSV data:", err)
 			break
 		}
 		if i == 0 {
@@ -62,22 +84,23 @@ func ReadTasks() map[int]Task {
 				utils.HandleErr(err)
 			}
 		}
-		tasks[i] = t
+		s.Tasks = append(s.Tasks, t)
 		i++
 	}
-	return tasks
 }
 
-func WriteTasks(tasks map[int]Task) {
+func (s *Store) WriteTasks() error {
 	file, err := os.OpenFile("data/tasks.csv", os.O_CREATE|os.O_RDWR, 0o644)
-	utils.HandleErr(err)
+	if err != nil {
+		return err
+	}
 	defer file.Close()
 	w := csv.NewWriter(file)
 	header := []string{"id", "task", "completed", "created"}
 	records := [][]string{
 		header,
 	}
-	for _, task := range tasks {
+	for _, task := range s.Tasks {
 		record := []string{
 			strconv.Itoa(task.ID),
 			task.Task,
@@ -87,5 +110,5 @@ func WriteTasks(tasks map[int]Task) {
 		records = append(records, record)
 	}
 
-	w.WriteAll(records)
+	return w.WriteAll(records)
 }

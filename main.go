@@ -6,7 +6,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/hussein-mourad/gotasks/internal/tasks"
 	"github.com/hussein-mourad/gotasks/utils"
@@ -15,13 +14,15 @@ import (
 func main() {
 	// GetFile()
 	// cmd.Execute()
-	taskMap := make(map[int]tasks.Task)
-	taskMap[1] = tasks.Task{ID: 1, Task: "Task 1", Completed: false, Created: time.Now().UTC()}
-	taskMap[2] = tasks.Task{ID: 2, Task: "Task 2", Completed: false, Created: time.Now().UTC()}
-	taskMap[3] = tasks.Task{ID: 3, Task: "Task 3", Completed: false, Created: time.Now().UTC()}
-	taskMap[4] = tasks.Task{ID: 4, Task: "Task 4", Completed: false, Created: time.Now().UTC()}
-	tasks.WriteTasks(taskMap)
-	fmt.Println(tasks.ReadTasks())
+	taskStore := tasks.NewStore()
+
+	taskStore.CreateTask("Task")
+	taskStore.CreateTask("Task")
+	taskStore.CreateTask("Task")
+
+	for _, t := range taskStore.Tasks {
+		fmt.Println(t)
+	}
 }
 
 func GetFile() {

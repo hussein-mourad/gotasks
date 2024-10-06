@@ -16,10 +16,10 @@ func main() {
 }
 
 func createFile() {
-	filename := "data.csv"
-	_, err := os.Open(filename)
+	filepath := "data/data.csv"
+	_, err := os.Open(filepath)
 	if err != nil {
-		_, err = os.Create(filename)
+		_, err = os.Create(filepath)
 	}
 	if err != nil {
 		log.Fatal(err)

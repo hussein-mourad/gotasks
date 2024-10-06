@@ -4,22 +4,12 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"time"
 
 	"github.com/hussein-mourad/gotasks/utils"
 )
-
-type Store struct {
-	R *csv.Reader
-	W *csv.Writer
-}
-
-// type TaskStore interface {
-// 	GetUserByEmail(email string) (*User, error)
-// 	GetUserByID(id int) (*User, error)
-// 	CreateTask(User) error
-// }
 
 type Task struct {
 	ID        int       `csv:"id"`
@@ -32,12 +22,16 @@ func NewTask(id int, task string) *Task {
 	return &Task{Task: task, Completed: false, Created: time.Now()}
 }
 
-func (s *Store) ReadTasks() map[int]Task {
+func ReadTasks() map[int]Task {
+	file, err := os.OpenFile("data/tasks.csv", os.O_CREATE|os.O_RDWR, 0o644)
+	utils.HandleErr(err)
+	defer file.Close()
+	r := csv.NewReader(file)
 	tasks := make(map[int]Task, 2)
 
 	i := 0
 	for {
-		record, err := s.R.Read()
+		record, err := r.Read()
 		if err == io.EOF {
 			break
 		}
@@ -46,6 +40,7 @@ func (s *Store) ReadTasks() map[int]Task {
 			break
 		}
 		if i == 0 {
+			i++
 			continue // Skip Reading the header
 		}
 
@@ -73,7 +68,11 @@ func (s *Store) ReadTasks() map[int]Task {
 	return tasks
 }
 
-func (s *Store) WriteTasks(tasks map[int]Task) {
+func WriteTasks(tasks map[int]Task) {
+	file, err := os.OpenFile("data/tasks.csv", os.O_CREATE|os.O_RDWR, 0o644)
+	utils.HandleErr(err)
+	defer file.Close()
+	w := csv.NewWriter(file)
 	header := []string{"id", "task", "completed", "created"}
 	records := [][]string{
 		header,
@@ -88,5 +87,5 @@ func (s *Store) WriteTasks(tasks map[int]Task) {
 		records = append(records, record)
 	}
 
-	s.W.WriteAll(records)
+	w.WriteAll(records)
 }

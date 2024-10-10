@@ -8,10 +8,14 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"text/tabwriter"
 	"time"
 
 	"github.com/hussein-mourad/gotasks/utils"
+	"github.com/mergestat/timediff"
 )
+
+var w = tabwriter.NewWriter(os.Stdout, 0, 4, 4, ' ', 0)
 
 type Store struct {
 	Tasks []Task
@@ -53,13 +57,14 @@ func (s *Store) GetInsertID() int {
 	return insertID
 }
 
-func (s *Store) MarkCompleted(id int) error {
+func (s *Store) MarkCompleted(id int) (Task, error) {
 	index, err := s.findByID(id)
 	if err != nil {
-		return ErrTaskNotFound
+		return Task{}, err
 	}
-	s.Tasks[index].Completed = true
-	return s.WriteTasks()
+	task := &s.Tasks[index]
+	task.Completed = true
+	return *task, s.WriteTasks()
 }
 
 func (s *Store) DeleteTask(id int) error {
@@ -68,7 +73,6 @@ func (s *Store) DeleteTask(id int) error {
 		return ErrTaskNotFound
 	}
 	s.Tasks = append(s.Tasks[:index], s.Tasks[index+1:]...)
-	fmt.Printf("Task Length: %v\n", len(s.Tasks))
 	return s.WriteTasks()
 }
 
@@ -84,6 +88,41 @@ func (s *Store) findByID(id int) (int, error) {
 		return index, nil
 	}
 	return index, ErrTaskNotFound
+}
+
+func PrintTask(t Task) {
+	fmt.Fprintln(w, "ID\tTask\tCreated")
+	fmt.Fprintf(w, "%v\t%v\t%v\n", t.ID, t.Task, formatTime(t.Created))
+	w.Flush()
+}
+
+func PrintTaskCompleted(t Task) {
+	fmt.Fprintln(w, "ID\tTask\tCreated\tCompleted")
+	fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", t.ID, t.Task, formatTime(t.Created), t.Completed)
+	w.Flush()
+}
+
+func (s *Store) ListTasks() {
+	fmt.Fprintln(w, "ID\tTask\tCreated")
+	for _, t := range s.Tasks {
+		if !t.Completed {
+			fmt.Fprintf(w, "%v\t%v\t%v\n", t.ID, t.Task, formatTime(t.Created))
+		}
+	}
+	w.Flush()
+}
+
+func (s *Store) ListTasksCompleted() {
+	fmt.Printf("\n\n")
+	fmt.Fprintln(w, "ID\tTask\tCreated\tCompleted")
+	for _, t := range s.Tasks {
+		fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", t.ID, t.Task, formatTime(t.Created), t.Completed)
+	}
+	w.Flush()
+}
+
+func formatTime(t time.Time) string {
+	return timediff.TimeDiff(t)
 }
 
 func (s *Store) ReadTasks() {
@@ -141,7 +180,6 @@ func (s *Store) WriteTasks() error {
 	records := [][]string{
 		header,
 	}
-	fmt.Printf("Task Length: %v\n", len(s.Tasks))
 	for _, task := range s.Tasks {
 		record := []string{
 			strconv.Itoa(task.ID),

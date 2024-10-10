@@ -1,9 +1,13 @@
 package utils
 
-import "log"
+import (
+	"fmt"
+	"os"
+)
 
 func HandleErr(err error) {
 	if err != nil {
-		log.Fatal(err)
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
 	}
 }

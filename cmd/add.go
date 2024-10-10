@@ -4,6 +4,10 @@ Copyright © 2024 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"encoding/csv"
+	"os"
+
+	"github.com/hussein-mourad/gotasks/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -13,6 +17,20 @@ var addCmd = &cobra.Command{
 	Short: "add Tasks to the list",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		file, err := os.OpenFile("data/tasks.csv", os.O_APPEND|os.O_WRONLY, 0o644)
+		utils.HandleErr(err)
+		defer file.Close()
+
+		writer := csv.NewWriter(file)
+		defer writer.Flush()
+
+		Task{}
+
+		row := []string{"David", "30", "Male"}
+		err = writer.Write(row)
+		if err != nil {
+			panic(err)
+		}
 	},
 }
 

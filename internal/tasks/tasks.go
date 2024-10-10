@@ -2,6 +2,8 @@ package tasks
 
 import (
 	"encoding/csv"
+	"errors"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -28,13 +30,19 @@ type Task struct {
 	Created   time.Time `csv:"created"`
 }
 
+var (
+	ErrTaskNotFound = errors.New("Task not found.")
+	TasksFile       = "data/tasks.csv"
+)
+
 func NewTask(id int, task string) *Task {
 	return &Task{ID: id, Task: task, Completed: false, Created: time.Now().UTC()}
 }
 
-func (s *Store) CreateTask(Task string) error {
-	s.Tasks = append(s.Tasks, *NewTask(s.GetInsertID(), Task))
-	return s.WriteTasks()
+func (s *Store) CreateTask(Task string) (Task, error) {
+	t := *NewTask(s.GetInsertID(), Task)
+	s.Tasks = append(s.Tasks, t)
+	return t, s.WriteTasks()
 }
 
 func (s *Store) GetInsertID() int {
@@ -45,8 +53,41 @@ func (s *Store) GetInsertID() int {
 	return insertID
 }
 
+func (s *Store) MarkCompleted(id int) error {
+	index, err := s.findByID(id)
+	if err != nil {
+		return ErrTaskNotFound
+	}
+	s.Tasks[index].Completed = true
+	return s.WriteTasks()
+}
+
+func (s *Store) DeleteTask(id int) error {
+	index, err := s.findByID(id)
+	if err != nil {
+		return ErrTaskNotFound
+	}
+	s.Tasks = append(s.Tasks[:index], s.Tasks[index+1:]...)
+	fmt.Printf("Task Length: %v\n", len(s.Tasks))
+	return s.WriteTasks()
+}
+
+func (s *Store) findByID(id int) (int, error) {
+	index := -1
+	for i, t := range s.Tasks {
+		if t.ID == id {
+			index = i
+			break
+		}
+	}
+	if index != -1 {
+		return index, nil
+	}
+	return index, ErrTaskNotFound
+}
+
 func (s *Store) ReadTasks() {
-	file, err := os.OpenFile("data/tasks.csv", os.O_CREATE|os.O_RDWR, 0o644)
+	file, err := os.OpenFile(TasksFile, os.O_CREATE|os.O_RDWR, 0o644)
 	utils.HandleErr(err)
 	defer file.Close()
 	r := csv.NewReader(file)
@@ -90,7 +131,7 @@ func (s *Store) ReadTasks() {
 }
 
 func (s *Store) WriteTasks() error {
-	file, err := os.OpenFile("data/tasks.csv", os.O_CREATE|os.O_RDWR, 0o644)
+	file, err := os.Create(TasksFile)
 	if err != nil {
 		return err
 	}
@@ -100,6 +141,7 @@ func (s *Store) WriteTasks() error {
 	records := [][]string{
 		header,
 	}
+	fmt.Printf("Task Length: %v\n", len(s.Tasks))
 	for _, task := range s.Tasks {
 		record := []string{
 			strconv.Itoa(task.ID),

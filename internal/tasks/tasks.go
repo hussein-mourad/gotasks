@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"syscall"
 	"text/tabwriter"
 	"time"
 
@@ -113,7 +114,6 @@ func (s *Store) ListTasks() {
 }
 
 func (s *Store) ListTasksCompleted() {
-	fmt.Printf("\n\n")
 	fmt.Fprintln(w, "ID\tTask\tCreated\tCompleted")
 	for _, t := range s.Tasks {
 		fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", t.ID, t.Task, formatTime(t.Created), t.Completed)
@@ -128,7 +128,13 @@ func formatTime(t time.Time) string {
 func (s *Store) ReadTasks() {
 	file, err := os.OpenFile(TasksFile, os.O_CREATE|os.O_RDWR, 0o644)
 	utils.HandleErr(err)
-	defer file.Close()
+
+	// Exclusive lock obtained on the file descriptor
+	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX); err != nil {
+		_ = file.Close()
+		utils.HandleErr(err)
+	}
+	defer closeFile(file)
 	r := csv.NewReader(file)
 
 	i := 0
@@ -174,7 +180,12 @@ func (s *Store) WriteTasks() error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	// Exclusive lock obtained on the file descriptor
+	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX); err != nil {
+		_ = file.Close()
+		return err
+	}
+	defer closeFile(file)
 	w := csv.NewWriter(file)
 	header := []string{"id", "task", "completed", "created"}
 	records := [][]string{
@@ -191,4 +202,9 @@ func (s *Store) WriteTasks() error {
 	}
 
 	return w.WriteAll(records)
+}
+
+func closeFile(f *os.File) error {
+	syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	return f.Close()
 }
